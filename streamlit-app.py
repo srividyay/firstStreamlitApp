@@ -31,14 +31,14 @@ TRAIN_PACKAGE = st.secrets.get("TRAIN_PACKAGE", "cnn_image_pipeline.src")  # set
 
 # Path setup
 PROJECT_ROOT = Path(__file__).resolve().parent
-SRC_DIR = PROJECT_ROOT / "cnn_image_processing" / "src"
+SRC_DIR = PROJECT_ROOT / "cnn_image_pipeline" / "src"
 
 # Make sure Python can import from src
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 # Point TRAIN_PACKAGE to match your repo structure
-TRAIN_PACKAGE = "cnn_image_processing.src" 
+TRAIN_PACKAGE = "cnn_image_pipeline.src" 
 
 # ---------------- Helpers -----------------
 def ensure_dir(path: str) -> None:
