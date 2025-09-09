@@ -8,3 +8,4 @@ jupyter>=1.0.0
 opencv-python>=4.6.0
 tensorflow>=2.10.0  # For CNN models (retinal/product images)
 torch>=1.13.0  # Alternative to TensorFlow
+streamlit
