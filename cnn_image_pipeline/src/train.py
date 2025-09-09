@@ -40,12 +40,27 @@ def train_and_eval(cfg: dict, overrides: dict):
     logger.info(f"Loaded config for env: {cfg.get('env_name','unknown')}")
 
     # Build datasets
-    train_ds, val_ds, test_ds = build_datasets(cfg)
+    
+    out = build_datasets(cfg)
+    # Backward compatible unpacking:
+    if len(out) == 4:
+        train_ds, val_ds, test_ds, class_names = out
+    else:
+        # legacy: function returned 3 values
+        train_ds, val_ds, test_ds = out
+        class_names = getattr(train_ds, "class_names", None)  # likely None on PrefetchDataset
+        if class_names is None:
+            # Fallback: infer from directory names
+            data_dir = Path(cfg["data"].get("data_dir", ""))
+            train_dir = Path(cfg["data"].get("train_dir", data_dir))
+            class_names = sorted([p.name for p in train_dir.iterdir() if p.is_dir()])
+
+    logger.info(f"Classes: {class_names}")
+    
     logger.info("Datasets prepared")
     if train_ds is None:
         raise RuntimeError("Training dataset not found. Check your paths.")
 
-    class_names = train_ds.class_names
     num_classes = int(cfg["model"]["num_classes"])
     input_h, input_w = cfg["data"]["image_size"]
     dropout = float(cfg["model"].get("dropout", 0.0))
