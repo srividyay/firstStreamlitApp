@@ -12,6 +12,8 @@ from .model import build_simple_cnn
 from .data import build_datasets
 from .utils.logger import build_logger
 
+import gc, tensorflow as tf
+
 def set_seeds(seed: int):
     random.seed(seed)
     np.random.seed(seed)
