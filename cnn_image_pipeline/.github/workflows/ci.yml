@@ -1,0 +1,74 @@
+name: ci
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install deps
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+      - name: Dry-run pipeline (no real data)
+        run: |
+          source .venv/bin/activate
+          # Create a tiny dummy dataset to sanity-check code paths
+          python - <<'PY'
+          import os, shutil, pathlib
+          from PIL import Image
+          root = pathlib.Path('dummy_data/processed')
+          for split in ['train','val','test']:
+              for cls in ['a','b','c','d','e']:
+                  p = root / split / cls
+                  p.mkdir(parents=True, exist_ok=True)
+                  # make 2 tiny images per class
+                  for i in range(2):
+                      img = Image.new('RGB', (64,64), color=(i*20, i*10, i*5))
+                      img.save(p / f'{cls}_{i}.png')
+          print('Dummy dataset created at', root)
+          PY
+          # write a tiny local config on the fly
+          cat > configs/ci.yaml <<'YAML'
+env_name: ci
+seed: 1
+use_gdrive: false
+data:
+  root_dir: "dummy_data/processed"
+  validation_split: 0.0
+  image_size: [64, 64]
+  batch_size: 4
+  shuffle: true
+  interpolation: "bilinear"
+training:
+  epochs: 1
+  early_stopping:
+    enabled: true
+    patience: 1
+    monitor: "val_loss"
+    mode: "min"
+model:
+  num_classes: 5
+  dropout: 0.1
+  optimizer: "adam"
+  loss: "sparse_categorical_crossentropy"
+  metrics: ["accuracy"]
+artifacts:
+  dir: "artifacts"
+  save_model_filename: "model.keras"
+  save_metrics_filename: "metrics.json"
+  confusion_matrix_filename: "confusion_matrix.png"
+runtime:
+  mixed_precision: false
+  num_parallel_calls: "autotune"
+dry_run: true
+  YAML
+          python -m src.train --config configs/ci.yaml

@@ -1,0 +1,40 @@
+# Production-like config
+env_name: prod
+seed: 1337
+use_gdrive: false
+gdrive_mount_path: /content/drive
+
+data:
+  root_dir: "data/processed"
+  validation_split: 0.0
+  image_size: [512, 512]
+  batch_size: 64
+  shuffle: true
+  interpolation: "bilinear"
+
+training:
+  epochs: 20
+  early_stopping:
+    enabled: true
+    patience: 5
+    monitor: "val_loss"
+    mode: "min"
+
+model:
+  num_classes: 5
+  dropout: 0.3
+  optimizer: "adam"
+  loss: "sparse_categorical_crossentropy"
+  metrics: ["accuracy"]
+
+artifacts:
+  dir: "artifacts"
+  save_model_filename: "simple_cnn_model.keras"
+  save_metrics_filename: "simple_cnn_metrics.json"
+  confusion_matrix_filename: "simple_cnn_confusion_matrix.png"
+
+runtime:
+  mixed_precision: true
+  num_parallel_calls: "autotune"
+
+dry_run: false

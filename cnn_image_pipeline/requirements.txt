@@ -1,0 +1,11 @@
+# Core
+tensorflow>=2.12,<3.0
+numpy>=1.23
+pandas>=1.5
+Pillow>=9.5
+PyYAML>=6.0
+matplotlib>=3.7
+scikit-learn>=1.2
+
+# Optional for Colab/Drive (safe to keep even if not used)
+# google-colab

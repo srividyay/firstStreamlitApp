@@ -1,0 +1,55 @@
+# Production-ready configuration
+io:
+  # In production, prefer absolute paths mounted via your container/orchestrator.
+  input_images_dir: "data/raw"
+  preprocessed_images_dir: "data/processed"
+  labeled_map_csv: "healthcare/retinal_labels.csv"         # optional
+  organized_output_dir: "data/processed/organized"     # optional (required if split.enabled)
+  split_output_dir: "data/processed"             # optional
+  train_dir: "data/processed/train"              # set after split or manually
+  val_dir: "data/processed/val"
+  test_dir: "data/processed/test"
+
+  input_images_dir: "/opt/app/data/raw_images"
+  preprocessed_images_dir: "/opt/app/data/preprocessed"
+  labeled_map_csv: "/opt/app/data/labels.csv"        # optional; required if organizing by class
+  organized_output_dir: "/opt/app/data/organized"     # required if split.enabled
+  split_output_dir: "/opt/app/data/split"
+  train_dir: "/opt/app/data/split/train"
+  val_dir: "/opt/app/data/split/val"
+  test_dir: "/opt/app/data/split/test"
+  exts: [".png", ".jpg", ".jpeg"]
+
+quality:
+  green_contrast_threshold: 45.0   # slightly stricter than local
+  failure_baseline: 3
+  enable_denoise: false            # keep off unless needed for runtime
+
+dataset:
+  image_size: [512, 512]
+  batch_size: 64                   # larger batch if prod machine allows
+  seed: 0
+  interpolation: "bilinear"
+  label_mode: "int"
+  labels: "inferred"
+  shuffle_train: true
+  shuffle_val: false
+  shuffle_test: true
+
+split:
+  enabled: true
+  ratios: [0.75, 0.15, 0.10]
+  seed: 42
+
+viz:
+  enabled: true                   # disable visuals in prod by default
+  out_dir: "/opt/app/outputs/visuals"
+
+save:
+  train_out: "/opt/app/outputs/processed/train"
+  val_out: "/opt/app/outputs/processed/val"
+  test_out: "/opt/app/outputs/processed/test"
+
+logging:
+  log_dir: "/opt/app/logs"
+  level: "INFO"

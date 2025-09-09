@@ -1,0 +1,41 @@
+# Local development config
+env_name: local
+seed: 42
+use_gdrive: true        # set true only if running in Google Colab and you want to mount Drive
+gdrive_mount_path: /content/drive
+
+data:
+  root_dir: "/MyDrive/AIML-Bootcamp/Colab_Data/Data_Pipeline"
+  # If you don't have an explicit 'val' folder, set validation_split > 0 to carve from 'train'
+  validation_split: 0.0
+  image_size: [512, 512]
+  batch_size: 16
+  shuffle: true
+  interpolation: "bilinear"
+
+training:
+  epochs: 5
+  early_stopping:
+    enabled: true
+    patience: 3
+    monitor: "val_loss"
+    mode: "min"
+
+model:
+  num_classes: 5
+  dropout: 0.3
+  optimizer: "adam"
+  loss: "sparse_categorical_crossentropy"
+  metrics: ["accuracy"]
+
+artifacts:
+  dir: "artifacts"
+  save_model_filename: "simple_model.keras"
+  save_metrics_filename: "simple_cnnmodel_metrics.json"
+  confusion_matrix_filename: "simple_cnnmodel_confusion_matrix.png"
+
+runtime:
+  mixed_precision: false   # set true on modern GPUs if desired
+  num_parallel_calls: "autotune"
+
+dry_run: false  # if true, builds pipeline, 1 small step of training/eval, then exits

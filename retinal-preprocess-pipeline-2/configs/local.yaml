@@ -1,0 +1,44 @@
+io:
+  input_images_dir: "/MyDrive/AIML-Bootcamp/Colab_Data/Data_Pipeline/data/raw"
+  preprocessed_images_dir: "/MyDrive/AIML-Bootcamp/Colab_Data/Data_Pipeline/data/processed"
+  labeled_map_csv: "/MyDrive/AIML-Bootcamp/healthcare/retinal_labels.csv"         # optional
+  organized_output_dir: "/MyDrive/AIML-Bootcamp/Colab_Data/Data_Pipeline/data/processed/organized"     # optional (required if split.enabled)
+  split_output_dir: "/MyDrive/AIML-Bootcamp/Colab_Data/Data_Pipeline/data/processed"             # optional
+  train_dir: "/MyDrive/AIML-Bootcamp/Colab_Data/Data_Pipeline/data/processed/train"              # set after split or manually
+  val_dir: "/MyDrive/AIML-Bootcamp/Colab_Data/Data_Pipeline/data/processed/val"
+  test_dir: "/MyDrive/AIML-Bootcamp/Colab_Data/Data_Pipeline/data/processed/test"
+  exts: [".png", ".jpg", ".jpeg"]
+
+quality:
+  green_contrast_threshold: 40.0
+  failure_baseline: 3
+  enable_denoise: true
+
+dataset:
+  image_size: [512, 512]
+  batch_size: 32
+  seed: 0
+  interpolation: "bilinear"
+  label_mode: "int"
+  labels: "inferred"
+  shuffle_train: true
+  shuffle_val: false
+  shuffle_test: true
+
+split:
+  enabled: true
+  ratios: [0.7, 0.2, 0.1]
+  seed: 42
+
+viz:
+  enabled: true
+  out_dir: "outputs/visuals"
+
+save:
+  train_out: "outputs/processed/train"
+  val_out: "outputs/processed/val"
+  test_out: "outputs/processed/test"
+
+logging:
+  log_dir: "logs"
+  level: "INFO"

@@ -1,0 +1,9 @@
+opencv-python
+tensorflow>=2.11
+numpy
+pandas
+pyyaml
+matplotlib
+split-folders
+Pillow
+scikit-learn
