@@ -6,6 +6,9 @@ gdrive_mount_path: /content/drive
 
 data:
   root_dir: "data/processed"
+  train_dir: "data/processed/train"
+  test_dir: "data/processed/test"
+  val_dir: "data/processed/val"
   validation_split: 0.0
   #image_size: [512, 512]
   #batch_size: 64
