@@ -41,8 +41,8 @@ def train_and_eval(cfg: dict, overrides: dict):
 
     # Build datasets
     
-    out = build_datasets(cfg)
-    # Backward compatible unpacking:
+    train_ds, val_ds, test_ds, class_names = build_datasets(cfg)
+    """# Backward compatible unpacking:
     if len(out) == 4:
         train_ds, val_ds, test_ds, class_names = out
     else:
@@ -53,7 +53,7 @@ def train_and_eval(cfg: dict, overrides: dict):
             # Fallback: infer from directory names
             data_dir = Path(cfg["data"].get("data_dir", ""))
             train_dir = Path(cfg["data"].get("train_dir", data_dir))
-            class_names = sorted([p.name for p in train_dir.iterdir() if p.is_dir()])
+            class_names = sorted([p.name for p in train_dir.iterdir() if p.is_dir()])"""
 
     logger.info(f"Classes: {class_names}")
     
