@@ -7,9 +7,14 @@ gdrive_mount_path: /content/drive
 data:
   root_dir: "data/processed"
   validation_split: 0.0
-  image_size: [512, 512]
-  batch_size: 64
+  #image_size: [512, 512]
+  #batch_size: 64
+  image_size: [224, 224]
+  batch_size: 8
   shuffle: true
+  shuffle_buffer: 128        # smaller than batch*1000
+  prefetch_buffer: 1         # keep memory footprint low
+  cache: "disk"
   interpolation: "bilinear"
 
 training:
