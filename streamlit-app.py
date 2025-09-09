@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+import sys, json
 
 # ---------------- Settings ----------------
 SAVE_DIR = st.secrets.get("SAVE_DIR", "uploads")
@@ -21,6 +22,12 @@ GIT_USER_EMAIL = st.secrets.get("GIT_USER_EMAIL", "uploader@example.com")
 
 ALLOWED_TYPES = ["csv", "xlsx", "xls"]
 MAX_PREVIEW_ROWS = 100
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+TRAIN_PACKAGE = st.secrets.get("TRAIN_PACKAGE", "cnn_image_pipeline/src")  # set to your package name
 
 # ---------------- Helpers -----------------
 def ensure_dir(path: str) -> None:
@@ -218,3 +225,85 @@ if uploaded is not None:
                 st.warning(f"Push note: {msg}")
 
 st.caption("Note: On Streamlit Cloud, local filesystem is ephemeral. Use the push option to persist uploads in your remote repo.")
+
+with st.expander("🧠 Train a model", expanded=True):
+    st.write("Upload a YAML config and start training.")
+
+    cfg_file = st.file_uploader("YAML config", type=["yml", "yaml"])
+    epochs_override = st.number_input("Override epochs (optional)", min_value=1, step=1, value=10)
+    dry_run = st.checkbox("Dry run (1 epoch)", value=False)
+
+    artifacts_hint = st.text_input(
+        "Artifacts directory (optional; leave blank to use config)",
+        value="",
+        help="If set, will override cfg['artifacts']['dir'] just before training."
+    )
+
+    if st.button("🚀 Train"):
+        if not cfg_file:
+            st.error("Please upload a YAML config file.")
+            st.stop()
+
+        # Save config to disk so your loaders can find it
+        CONFIGS_DIR = PROJECT_ROOT / "configs" / "uploads"
+        CONFIGS_DIR.mkdir(parents=True, exist_ok=True)
+        cfg_path = CONFIGS_DIR / cfg_file.name
+        cfg_path.write_bytes(cfg_file.read())
+
+        with st.status("Starting training…", expanded=True) as status:
+            try:
+                # Import your training stack
+                config_mod = __import__(f"{TRAIN_PACKAGE}.config", fromlist=["load_config"])
+                train_mod = __import__(f"{TRAIN_PACKAGE}.train", fromlist=["train_and_eval"])
+
+                # Load config dict
+                cfg = config_mod.load_config(str(cfg_path))
+
+                # Optional: override artifacts dir from UI
+                if artifacts_hint.strip():
+                    cfg.setdefault("artifacts", {})
+                    cfg["artifacts"]["dir"] = artifacts_hint.strip()
+
+                # Build overrides dict (match your train.py signature)
+                overrides = {
+                    "epochs": int(epochs_override) if epochs_override else None,
+                    "dry_run": bool(dry_run),
+                }
+
+                st.write("Config loaded. Beginning training…")
+                metrics = train_mod.train_and_eval(cfg, overrides)
+
+                st.success("Training finished.")
+                st.subheader("Metrics")
+                st.json(metrics)
+
+                # Try to display confusion matrix and log if present
+                artifacts_dir = Path(cfg["artifacts"]["dir"])
+                cm_file = artifacts_dir / cfg["artifacts"].get("confusion_matrix_filename", "confusion_matrix.png")
+                if cm_file.exists():
+                    st.image(str(cm_file), caption="Confusion Matrix", use_container_width=True)
+
+                log_file = artifacts_dir / "simple_cnn_train.log"
+                if log_file.exists():
+                    st.download_button(
+                        "Download training log",
+                        data=log_file.read_bytes(),
+                        file_name=log_file.name,
+                        mime="text/plain",
+                    )
+
+                # Also surface the saved model + metrics file if you want
+                model_file = artifacts_dir / cfg["artifacts"].get("save_model_filename", "model.keras")
+                if model_file.exists():
+                    st.download_button("Download model", data=model_file.read_bytes(), file_name=model_file.name)
+
+                metrics_file = artifacts_dir / cfg["artifacts"].get("save_metrics_filename", "metrics.json")
+                if metrics_file.exists():
+                    st.download_button("Download metrics.json", data=metrics_file.read_bytes(), file_name=metrics_file.name)
+
+                status.update(label="Done ✔️", state="complete")
+
+            except Exception as e:
+                st.exception(e)
+                status.update(label="Training failed ❌", state="error")
+
