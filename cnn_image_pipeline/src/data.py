@@ -70,7 +70,9 @@ def build_datasets(cfg: dict):
         test_ds = tf.keras.utils.image_dataset_from_directory(
             directory=test_dir, shuffle=False, **common
         )
-
+    # Capture class_names BEFORE wrapping
+    class_names = list(train_raw.class_names)
+    
     # Performance: cache/prefetch
     num_calls = AUTOTUNE if str(cfg.get("runtime", {}).get("num_parallel_calls", "autotune")).lower() == "autotune" else int(cfg.get("runtime", {}).get("num_parallel_calls", 1))
 
@@ -81,4 +83,4 @@ def build_datasets(cfg: dict):
         ds = ds.prefetch(AUTOTUNE)
         return ds
 
-    return _prep(train_ds), _prep(val_ds), _prep(test_ds)
+    return _prep(train_ds), _prep(val_ds), _prep(test_ds), class_names
