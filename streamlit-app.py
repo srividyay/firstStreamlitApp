@@ -37,9 +37,10 @@ def short_hash(b: bytes) -> str:
 def build_filename(original_name: str, file_bytes: bytes) -> str:
     stem = safe_stem(original_name)
     ext = os.path.splitext(original_name)[1].lower()
-    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-    h = short_hash(file_bytes)
-    return f"{stem}__{ts}__{h}{ext}"
+    #ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    #h = short_hash(file_bytes)
+    #return f"{stem}__{ts}__{h}{ext}"
+    return f"{stem}"
 
 def load_preview(file_bytes: bytes, ext: str) -> pd.DataFrame:
     if ext == ".csv":
