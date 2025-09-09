@@ -15,72 +15,80 @@ def _maybe_mount_gdrive(enabled: bool, mount_path: str):
         # Silent no-op outside Colab
         pass
 
-def build_datasets(cfg: dict):
-    _maybe_mount_gdrive(cfg.get("use_gdrive", False), cfg.get("gdrive_mount_path", "/content/drive"))
-
+def build_datasets(cfg):
     data_cfg = cfg["data"]
-    root_dir = Path(data_cfg["root_dir"])
-    image_size = tuple(data_cfg.get("image_size", [512, 512]))
+    data_dir = Path(data_cfg["data_dir"])
+    img_h, img_w = data_cfg["image_size"]
     batch_size = int(data_cfg.get("batch_size", 32))
+    seed = int(cfg.get("seed", 42))
+    val_split = float(data_cfg.get("val_split", 0.2))
     shuffle = bool(data_cfg.get("shuffle", True))
-    interpolation = data_cfg.get("interpolation", "bilinear")
-    validation_split = float(data_cfg.get("validation_split", 0.0))
 
-    # Detect if explicit val/ exists
-    has_explicit_val = (root_dir / "val").exists()
-    train_dir = root_dir / "train"
-    test_dir = root_dir / "test"
-    val_dir = root_dir / "val" if has_explicit_val else None
+    # NEW: memory knobs with safe defaults
+    cache_mode = data_cfg.get("cache", "disk")   # "disk", "memory", or False
+    prefetch_buf = int(data_cfg.get("prefetch_buffer", 1))  # 1 is memory-friendly
+    shuffle_buf = int(data_cfg.get("shuffle_buffer", max(batch_size * 2, 64)))
+    num_calls   = data_cfg.get("num_parallel_calls", None)  # None => let TF decide conservatively
 
-    if not train_dir.exists():
-        raise FileNotFoundError(f"Expected train dir: {train_dir}")
-
-    common = dict(
+    train_raw = tf.keras.utils.image_dataset_from_directory(
+        data_dir,
         labels="inferred",
         label_mode="int",
-        image_size=image_size,
+        validation_split=val_split,
+        subset="training",
+        seed=seed,
+        image_size=(img_h, img_w),
         batch_size=batch_size,
-        interpolation=interpolation,
-        seed=cfg.get("seed", 42),
+        shuffle=shuffle,
+    )
+    val_raw = tf.keras.utils.image_dataset_from_directory(
+        data_dir,
+        labels="inferred",
+        label_mode="int",
+        validation_split=val_split,
+        subset="validation",
+        seed=seed,
+        image_size=(img_h, img_w),
+        batch_size=batch_size,
+        shuffle=False,
     )
 
-    if has_explicit_val or validation_split <= 0.0:
-        train_ds = tf.keras.utils.image_dataset_from_directory(
-            directory=train_dir, shuffle=shuffle, **common
-        )
-        if val_dir and val_dir.exists():
-            val_ds = tf.keras.utils.image_dataset_from_directory(
-                directory=val_dir, shuffle=False, **common
-            )
+    class_names = list(train_raw.class_names)
+
+    # Optional mapping step? (keep parallelism modest)
+    # if you have a map(), do: .map(fn, num_parallel_calls=num_calls)
+
+    # Cache policy
+    if cache_mode:
+        if str(cache_mode).lower() == "memory":
+            train_raw = train_raw.cache()
+            val_raw   = val_raw.cache()
         else:
-            val_ds = None
-    else:
-        # Create val from train via split
-        train_ds = tf.keras.utils.image_dataset_from_directory(
-            directory=train_dir, shuffle=True, validation_split=validation_split,
-            subset="training", **common
-        )
-        val_ds = tf.keras.utils.image_dataset_from_directory(
-            directory=train_dir, shuffle=False, validation_split=validation_split,
-            subset="validation", **common
-        )
+            # cache to disk under artifacts to avoid RAM spikes
+            artifacts_dir = Path(cfg["artifacts"]["dir"])
+            artifacts_dir.mkdir(parents=True, exist_ok=True)
+            train_raw = train_raw.cache(str(artifacts_dir / "tfdata_train.cache"))
+            val_raw   = val_raw.cache(str(artifacts_dir / "tfdata_val.cache"))
+
+    # Shuffle (smaller buffer)
+    if shuffle:
+        train_raw = train_raw.shuffle(buffer_size=shuffle_buf, seed=seed)
+
+    # Prefetch with small buffer to limit resident memory
+    train_ds = train_raw.prefetch(prefetch_buf)
+    val_ds   = val_raw.prefetch(prefetch_buf)
 
     test_ds = None
-    if test_dir.exists():
-        test_ds = tf.keras.utils.image_dataset_from_directory(
-            directory=test_dir, shuffle=False, **common
+    test_dir = data_cfg.get("test_dir")
+    if test_dir:
+        test_raw = tf.keras.utils.image_dataset_from_directory(
+            Path(test_dir),
+            labels="inferred",
+            label_mode="int",
+            image_size=(img_h, img_w),
+            batch_size=batch_size,
+            shuffle=False,
         )
-    """# Capture class_names BEFORE wrapping
-    class_names = list(train_ds.class_names)"""
-    
-    # Performance: cache/prefetch
-    num_calls = AUTOTUNE if str(cfg.get("runtime", {}).get("num_parallel_calls", "autotune")).lower() == "autotune" else int(cfg.get("runtime", {}).get("num_parallel_calls", 1))
+        test_ds = test_raw.prefetch(prefetch_buf)
 
-    def _prep(ds):
-        if ds is None:
-            return None
-        ds = ds.cache()
-        ds = ds.prefetch(AUTOTUNE)
-        return ds
-
-    return _prep(train_ds), _prep(val_ds), _prep(test_ds)""", class_names"""
+    return train_ds, val_ds, test_ds, class_names
