@@ -268,7 +268,7 @@ with st.expander("🧠 Train a model", expanded=True):
         with st.status("Starting training…", expanded=True) as status:
             try:
                 # Import your training stack
-                config_mod = __import__(f"{CONFIG_PACKAGE}.config", fromlist=["load_config"])
+                config_mod = __import__(f"{CONFIG_PACKAGE}", fromlist=["load_config"])
                 train_mod = __import__(f"{TRAIN_PACKAGE}.train", fromlist=["train_and_eval"])
 
                 # Load config dict
