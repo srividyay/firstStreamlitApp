@@ -146,6 +146,8 @@ def train_and_eval(cfg: dict, overrides: dict):
         json.dump(metrics, f, indent=2)
     logger.info(f"Saved metrics to {metrics_path}")
 
+    tf.keras.backend.clear_session()
+    gc.collect()
     return metrics
 
 def parse_args():
