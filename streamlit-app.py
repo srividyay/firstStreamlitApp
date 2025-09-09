@@ -23,11 +23,22 @@ GIT_USER_EMAIL = st.secrets.get("GIT_USER_EMAIL", "uploader@example.com")
 ALLOWED_TYPES = ["csv", "xlsx", "xls"]
 MAX_PREVIEW_ROWS = 100
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+"""PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-TRAIN_PACKAGE = st.secrets.get("TRAIN_PACKAGE", "cnn_image_pipeline/src")  # set to your package name
+TRAIN_PACKAGE = st.secrets.get("TRAIN_PACKAGE", "cnn_image_pipeline.src")  # set to your package name"""
+
+# Path setup
+PROJECT_ROOT = Path(__file__).resolve().parent
+SRC_DIR = PROJECT_ROOT / "cnn_image_processing" / "src"
+
+# Make sure Python can import from src
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+# Point TRAIN_PACKAGE to match your repo structure
+TRAIN_PACKAGE = "cnn_image_processing.src" 
 
 # ---------------- Helpers -----------------
 def ensure_dir(path: str) -> None:
