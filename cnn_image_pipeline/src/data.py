@@ -17,7 +17,9 @@ def _maybe_mount_gdrive(enabled: bool, mount_path: str):
 
 def build_datasets(cfg):
     data_cfg = cfg["data"]
-    data_dir = Path(data_cfg["root_dir"])
+    train_data_dir = Path(data_cfg["train_dir"])
+    val_data_dir = Path(data_cfg["val_dir"])
+    test_data_dir = Path(data_cfg["test_dir"])
     img_h, img_w = data_cfg["image_size"]
     batch_size = int(data_cfg.get("batch_size", 32))
     seed = int(cfg.get("seed", 42))
@@ -31,22 +33,22 @@ def build_datasets(cfg):
     num_calls   = data_cfg.get("num_parallel_calls", None)  # None => let TF decide conservatively
 
     train_raw = tf.keras.utils.image_dataset_from_directory(
-        data_dir,
+        train_data_dir,
         labels="inferred",
         label_mode="int",
         validation_split=val_split,
-        subset="training",
+        subset=None,
         seed=seed,
         image_size=(img_h, img_w),
         batch_size=batch_size,
         shuffle=shuffle,
     )
     val_raw = tf.keras.utils.image_dataset_from_directory(
-        data_dir,
+        val_data_dir,
         labels="inferred",
         label_mode="int",
         validation_split=val_split,
-        subset="validation",
+        subset=None,
         seed=seed,
         image_size=(img_h, img_w),
         batch_size=batch_size,
@@ -79,7 +81,7 @@ def build_datasets(cfg):
     val_ds   = val_raw.prefetch(prefetch_buf)
 
     test_ds = None
-    test_dir = data_cfg.get("test_dir")
+    test_dir = data_cfg.get("test_data_dir")
     if test_dir:
         test_raw = tf.keras.utils.image_dataset_from_directory(
             Path(test_dir),
