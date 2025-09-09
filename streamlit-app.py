@@ -31,14 +31,18 @@ TRAIN_PACKAGE = st.secrets.get("TRAIN_PACKAGE", "cnn_image_pipeline.src")  # set
 
 # Path setup
 PROJECT_ROOT = Path(__file__).resolve().parent
-SRC_DIR = PROJECT_ROOT / "cnn_image_pipeline" / "src"
+TRAINING_SRC_DIR = PROJECT_ROOT / "cnn_image_pipeline" / "src"
+CONFIG_SRC_DIR = PROJECT_ROOT / "cnn_image_pipeline" / "configs"
 
 # Make sure Python can import from src
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
+if str(TRAINING_SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(TRAINING_SRC_DIR))
+if str(CONFIG_SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(CONFIG_SRC_DIR))
 
 # Point TRAIN_PACKAGE to match your repo structure
-TRAIN_PACKAGE = "cnn_image_pipeline.src" 
+TRAIN_PACKAGE = "cnn_image_pipeline.src"
+CONFIG_PACKAGE = "cnn_image_pipeline.configs"
 
 # ---------------- Helpers -----------------
 def ensure_dir(path: str) -> None:
@@ -264,7 +268,7 @@ with st.expander("🧠 Train a model", expanded=True):
         with st.status("Starting training…", expanded=True) as status:
             try:
                 # Import your training stack
-                config_mod = __import__(f"{TRAIN_PACKAGE}.config", fromlist=["load_config"])
+                config_mod = __import__(f"{CONFIG_PACKAGE}.config", fromlist=["load_config"])
                 train_mod = __import__(f"{TRAIN_PACKAGE}.train", fromlist=["train_and_eval"])
 
                 # Load config dict
