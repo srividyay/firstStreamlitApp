@@ -42,7 +42,28 @@ if str(CONFIG_SRC_DIR) not in sys.path:
 
 # Point TRAIN_PACKAGE to match your repo structure
 TRAIN_PACKAGE = "cnn_image_pipeline.src"
-CONFIG_PACKAGE = "cnn_image_pipeline.configs"
+#CONFIG_PACKAGE = "cnn_image_pipeline.configs"
+
+# Where to look for repo configs (customize this list)
+CONFIG_DIRS = [
+    PROJECT_ROOT / "configs",
+    PROJECT_ROOT / "cnn_image_processing" / "configs",
+    PROJECT_ROOT / "config",
+]
+CONFIG_EXTS = (".yml", ".yaml")
+
+def find_repo_configs():
+    paths = []
+    for d in CONFIG_DIRS:
+        if d.exists():
+            paths += sorted([p for p in d.rglob("*") if p.suffix.lower() in CONFIG_EXTS])
+    return paths
+
+def load_yaml_bytes(b: bytes):
+    return yaml.safe_load(io.BytesIO(b).read())
+
+def load_yaml_file(path: Path):
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 # ---------------- Helpers -----------------
 def ensure_dir(path: str) -> None:
@@ -241,58 +262,101 @@ if uploaded is not None:
 
 st.caption("Note: On Streamlit Cloud, local filesystem is ephemeral. Use the push option to persist uploads in your remote repo.")
 
+# ------------------------- TRAINING PANEL --------------------------
 with st.expander("🧠 Train a model", expanded=True):
-    st.write("Upload a YAML config and start training.")
+    st.write("Use a YAML config from the repo or upload a new one.")
 
-    cfg_file = st.file_uploader("YAML config", type=["yml", "yaml"])
-    epochs_override = st.number_input("Override epochs (optional)", min_value=1, step=1, value=10)
-    dry_run = st.checkbox("Dry run (1 epoch)", value=False)
-
-    artifacts_hint = st.text_input(
-        "Artifacts directory (optional; leave blank to use config)",
-        value="",
-        help="If set, will override cfg['artifacts']['dir'] just before training."
+    # --- Source selector ---
+    source_mode = st.radio(
+        "Choose config source",
+        ["Pick from repo", "Upload file"],
+        horizontal=True,
     )
 
+    # Repo picker
+    selected_cfg_path = None
+    if source_mode == "Pick from repo":
+        repo_cfgs = find_repo_configs()
+        if not repo_cfgs:
+            st.info("No YAML configs found in configured folders. Try uploading instead.")
+        else:
+            labels = [str(p.relative_to(PROJECT_ROOT)) for p in repo_cfgs]
+            choice = st.selectbox("Select a config from the repo", labels, index=0)
+            selected_cfg_path = PROJECT_ROOT / choice
+
+    # Upload
+    uploaded_cfg = None
+    if source_mode == "Upload file":
+        uploaded_cfg = st.file_uploader("Upload YAML", type=["yml", "yaml"])
+
+    # Common options
+    epochs_override = st.number_input("Override epochs (optional)", min_value=1, step=1, value=10)
+    dry_run = st.checkbox("Dry run (1 epoch)", value=False)
+    artifacts_override = st.text_input(
+        "Artifacts directory override (optional)",
+        value="",
+        help="If set, overrides cfg['artifacts']['dir'] before training.",
+    )
+
+    # Preview config
+    st.markdown("**Config preview**")
+    cfg_dict = None
+    try:
+        if source_mode == "Pick from repo" and selected_cfg_path:
+            cfg_dict = load_yaml_file(selected_cfg_path)
+        elif source_mode == "Upload file" and uploaded_cfg is not None:
+            cfg_dict = load_yaml_bytes(uploaded_cfg.read())
+        if cfg_dict is not None:
+            st.json(cfg_dict)
+    except Exception as e:
+        st.warning(f"Could not parse YAML: {e}")
+
+    # Train button
     if st.button("🚀 Train"):
-        if not cfg_file:
-            st.error("Please upload a YAML config file.")
+        if source_mode == "Pick from repo" and not selected_cfg_path:
+            st.error("Please select a config from the repo.")
+            st.stop()
+        if source_mode == "Upload file" and uploaded_cfg is None:
+            st.error("Please upload a YAML config.")
             st.stop()
 
-        # Save config to disk so your loaders can find it
-        CONFIGS_DIR = PROJECT_ROOT / "configs" / "uploads"
-        CONFIGS_DIR.mkdir(parents=True, exist_ok=True)
-        cfg_path = CONFIGS_DIR / cfg_file.name
-        cfg_path.write_bytes(cfg_file.read())
+        # Persist uploaded config to disk so your loader can read a path
+        if source_mode == "Upload file":
+            CONFIGS_DIR = PROJECT_ROOT / "configs" / "uploads"
+            CONFIGS_DIR.mkdir(parents=True, exist_ok=True)
+            cfg_path = CONFIGS_DIR / uploaded_cfg.name
+            cfg_bytes = uploaded_cfg.getvalue()
+            cfg_path.write_bytes(cfg_bytes)
+        else:
+            cfg_path = selected_cfg_path
 
         with st.status("Starting training…", expanded=True) as status:
             try:
-                # Import your training stack
-                config_mod = __import__(f"{CONFIG_PACKAGE}", fromlist=["load_config"])
+                # import training modules
+                config_mod = __import__(f"{TRAIN_PACKAGE}.config", fromlist=["load_config"])
                 train_mod = __import__(f"{TRAIN_PACKAGE}.train", fromlist=["train_and_eval"])
 
-                # Load config dict
+                # load config dict via your loader (ensures same parsing rules)
                 cfg = config_mod.load_config(str(cfg_path))
 
-                # Optional: override artifacts dir from UI
-                if artifacts_hint.strip():
+                # optional artifacts override
+                if artifacts_override.strip():
                     cfg.setdefault("artifacts", {})
-                    cfg["artifacts"]["dir"] = artifacts_hint.strip()
+                    cfg["artifacts"]["dir"] = artifacts_override.strip()
 
-                # Build overrides dict (match your train.py signature)
                 overrides = {
                     "epochs": int(epochs_override) if epochs_override else None,
                     "dry_run": bool(dry_run),
                 }
 
-                st.write("Config loaded. Beginning training…")
+                st.write(f"Using config: `{cfg_path}`")
                 metrics = train_mod.train_and_eval(cfg, overrides)
 
                 st.success("Training finished.")
                 st.subheader("Metrics")
                 st.json(metrics)
 
-                # Try to display confusion matrix and log if present
+                # Surface artifacts
                 artifacts_dir = Path(cfg["artifacts"]["dir"])
                 cm_file = artifacts_dir / cfg["artifacts"].get("confusion_matrix_filename", "confusion_matrix.png")
                 if cm_file.exists():
@@ -300,14 +364,8 @@ with st.expander("🧠 Train a model", expanded=True):
 
                 log_file = artifacts_dir / "simple_cnn_train.log"
                 if log_file.exists():
-                    st.download_button(
-                        "Download training log",
-                        data=log_file.read_bytes(),
-                        file_name=log_file.name,
-                        mime="text/plain",
-                    )
+                    st.download_button("Download training log", data=log_file.read_bytes(), file_name=log_file.name)
 
-                # Also surface the saved model + metrics file if you want
                 model_file = artifacts_dir / cfg["artifacts"].get("save_model_filename", "model.keras")
                 if model_file.exists():
                     st.download_button("Download model", data=model_file.read_bytes(), file_name=model_file.name)
@@ -321,4 +379,3 @@ with st.expander("🧠 Train a model", expanded=True):
             except Exception as e:
                 st.exception(e)
                 status.update(label="Training failed ❌", state="error")
-
