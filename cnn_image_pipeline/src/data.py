@@ -17,7 +17,7 @@ def _maybe_mount_gdrive(enabled: bool, mount_path: str):
 
 def build_datasets(cfg):
     data_cfg = cfg["data"]
-    data_dir = Path(data_cfg["data_dir"])
+    data_dir = Path(data_cfg["root_dir"])
     img_h, img_w = data_cfg["image_size"]
     batch_size = int(data_cfg.get("batch_size", 32))
     seed = int(cfg.get("seed", 42))
