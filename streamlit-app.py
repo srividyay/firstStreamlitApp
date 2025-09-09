@@ -46,9 +46,7 @@ TRAIN_PACKAGE = "cnn_image_pipeline.src"
 
 # Where to look for repo configs (customize this list)
 CONFIG_DIRS = [
-    PROJECT_ROOT / "configs",
-    PROJECT_ROOT / "cnn_image_processing" / "configs",
-    PROJECT_ROOT / "config",
+    PROJECT_ROOT / "cnn_image_processing" / "configs"
 ]
 CONFIG_EXTS = (".yml", ".yaml")
 
